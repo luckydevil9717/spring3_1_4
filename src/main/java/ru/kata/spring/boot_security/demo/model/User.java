@@ -18,7 +18,7 @@ public class User implements UserDetails {
     private String firstName;
     private String lastName;
     private Integer age;
-    @Column(unique = true, nullable = false)
+    @Column(nullable = false, unique = true)
     private String email;
     private String password;
 
@@ -26,11 +26,11 @@ public class User implements UserDetails {
 
 
 
-    @ManyToMany(cascade = CascadeType.PERSIST)
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "users_roles",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id"))
-    private Set<Role> roles;
+    private Set<Role> roles = new HashSet<>();
 
 
     public User() {}
