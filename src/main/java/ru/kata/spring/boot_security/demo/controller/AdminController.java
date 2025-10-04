@@ -1,13 +1,14 @@
 package ru.kata.spring.boot_security.demo.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import ru.kata.spring.boot_security.demo.model.User;
-import ru.kata.spring.boot_security.demo.service.RoleServiceInterface;
+import ru.kata.spring.boot_security.demo.service.RoleService;
 import ru.kata.spring.boot_security.demo.service.UserService;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 @Controller
 @RequestMapping("/admin")
@@ -15,71 +16,74 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 public class AdminController {
 
     private final UserService userService;
-    private final RoleServiceInterface roleService;
+    private final RoleService roleService;
 
-    public AdminController(UserService userService, RoleServiceInterface roleService) {
+    public AdminController(UserService userService, RoleService roleService) {
         this.userService = userService;
         this.roleService = roleService;
     }
 
-    // Страница со списком пользователей
-    @GetMapping("/users")
-    public String listUsers(Model model, @AuthenticationPrincipal User user) {
+    @GetMapping
+    public String adminPage(Model model, @AuthenticationPrincipal User currentUser, HttpServletRequest request) {
         model.addAttribute("users", userService.getAllUsers());
-        model.addAttribute("currentUser", user != null ? user : new User()); // если null — пустой объект
+        model.addAttribute("currentUser", currentUser);
         model.addAttribute("allRoles", roleService.getAllRoles());
-        return "admin/users";
+        model.addAttribute("newUser", new User());
+        model.addAttribute("userToEdit", new User());
+        model.addAttribute("currentPath", request.getRequestURI());
+        return "admin";
     }
 
-    // Форма добавления нового пользователя
-    @GetMapping("/users/new")
-    public String newUserForm(Model model, @AuthenticationPrincipal User currentUser) {
-        model.addAttribute("user", new User());
-        model.addAttribute("allRoles", roleService.getAllRoles());
-        model.addAttribute("currentUser", currentUser); // чтобы шапка работала
-        return "admin/newUser";
+    @GetMapping("/user")
+    public String userPage(Model model, HttpServletRequest request, @AuthenticationPrincipal User currentUser) {
+        model.addAttribute("currentPath", request.getRequestURI());
+        model.addAttribute("currentUser", currentUser);
+        return "user";
     }
 
-    @PostMapping("/users/save")
-    public String saveUser(@ModelAttribute("user") User user, @RequestParam("roleIds") Long[] roleIds, Model model) {
-        if (userService.existsByEmail(user.getEmail())) { // проверка дублирования
+    @PostMapping("/save")
+    public String saveUser(@ModelAttribute("newUser") User user, @RequestParam("roleIds") Long[] roleIds, Model model, @AuthenticationPrincipal User currentUser) {
+
+        if (userService.existsByEmail(user.getEmail())) {
             model.addAttribute("errorMessage", "Пользователь с таким email уже существует!");
+            model.addAttribute("users", userService.getAllUsers());
+            model.addAttribute("currentUser", currentUser);
             model.addAttribute("allRoles", roleService.getAllRoles());
-            return "admin/newUser";
+            model.addAttribute("newUser", new User());
+            return "admin";
         }
+
         userService.saveUserWithRoles(user, roleIds);
-        return "redirect:/admin/users";
+        return "redirect:/admin";
     }
 
-    @PostMapping("/users/update")
-    public String updateUser(@ModelAttribute("user") User user, @RequestParam("roleIds") Long[] roleIds, Model model) {
-        if (userService.existsByEmailExceptId(user.getEmail(), user.getId())) { // проверка для редактирования
+
+    @PostMapping("/update")
+    public String updateUser(@ModelAttribute("userToEdit") User user, @RequestParam("roleIds") Long[] roleIds, Model model, @AuthenticationPrincipal User currentUser) {
+
+        if (userService.existsByEmailExceptId(user.getEmail(), user.getId())) {
             model.addAttribute("errorMessage", "Пользователь с таким email уже существует!");
-            model.addAttribute("user", user);
+            model.addAttribute("users", userService.getAllUsers());
+            model.addAttribute("currentUser", currentUser);
             model.addAttribute("allRoles", roleService.getAllRoles());
-            return "admin/editUser";
+            model.addAttribute("newUser", new User());
+            return "admin";
         }
+
         userService.updateUserWithRoles(user, roleIds);
-        return "redirect:/admin/users";
-    }
-
-    // Форма редактирования пользователя
-    @GetMapping("/users/edit/{id}")
-    public String editUserForm(@PathVariable Long id, Model model,
-                               @AuthenticationPrincipal User currentUser) {
-        User user = userService.getUser(id);
-        model.addAttribute("user", user);
-        model.addAttribute("allRoles", roleService.getAllRoles());
-        model.addAttribute("currentUser", currentUser); // шапка
-        return "admin/editUser";
+        return "redirect:/admin";
     }
 
 
+    @PostMapping("/delete")
+    public String deleteUser(@RequestParam Long id, Model model, @AuthenticationPrincipal User currentUser) {
 
-    // Удаление пользователя
-    @GetMapping("/users/delete/{id}")
-    public String deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
-        return "redirect:/admin/users";
+
+        model.addAttribute("users", userService.getAllUsers());
+        model.addAttribute("currentUser", currentUser);
+        model.addAttribute("allRoles", roleService.getAllRoles());
+        model.addAttribute("newUser", new User());
+        return "redirect:/admin";
     }
 }
