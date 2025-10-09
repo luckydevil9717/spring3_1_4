@@ -1,5 +1,6 @@
 package ru.kata.spring.boot_security.demo.service;
 
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -28,15 +29,6 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         this.roleRepo = roleRepo;
         this.passwordEncoder = passwordEncoder;
     }
-    public String getMainRole(User user) {
-        if (user.getRoles().stream().anyMatch(r -> r.getName().equals("ROLE_ADMIN"))) {
-            return "ADMIN";
-        } else if (user.getRoles().stream().anyMatch(r -> r.getName().equals("ROLE_USER"))) {
-            return "USER";
-        } else {
-            return "UNKNOWN";
-        }
-    }
 
     @Override
     public List<User> getAllUsers() {
@@ -45,7 +37,7 @@ public class UserServiceImpl implements UserService, UserDetailsService {
 
     @Override
     public void saveUser(User user) {
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        encodePasswordIfPresent(user);
         userRepo.save(user);
     }
 
@@ -61,12 +53,9 @@ public class UserServiceImpl implements UserService, UserDetailsService {
 
     @Override
     public void saveUserWithRoles(User user, Long[] roleIds) {
-        Set<Role> roles = Arrays.stream(roleIds)
-                .map(roleRepo::findById)
-                .map(opt -> opt.orElseThrow(() -> new RuntimeException("Role not found")))
-                .collect(Collectors.toSet());
+        Set<Role> roles = getRolesByIds(roleIds);
         user.setRoles(roles);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        encodePasswordIfPresent(user);
         userRepo.save(user);
     }
 
@@ -80,26 +69,27 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         existingUser.setAge(user.getAge());
         existingUser.setEmail(user.getEmail());
 
-        if (!user.getPassword().isEmpty()) {
+
+        if (user.getPassword() != null && !user.getPassword().isEmpty() && !user.getPassword().startsWith("$2a$")) {
             existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
         }
 
-        Set<Role> roles = Arrays.stream(roleIds)
-                .map(roleRepo::findById)
-                .map(opt -> opt.orElseThrow(() -> new RuntimeException("Role not found")))
-                .collect(Collectors.toSet());
-
-        existingUser.setRoles(roles);
+        existingUser.setRoles(getRolesByIds(roleIds));
         userRepo.save(existingUser);
+    }
+    @Override
+    public List<User> findAll() {
+        return userRepo.findAll();
     }
 
     @Override
     public List<Role> getAllRoles() {
-        return roleRepo.findAll()
-                .stream()
-                .distinct() // убираем дубли
-                .filter(r -> r.getName().equals("ROLE_ADMIN") || r.getName().equals("ROLE_USER"))
-                .collect(Collectors.toList());
+        return roleRepo.findAll();
+    }
+
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return userRepo.findByEmail(email);
     }
 
     @Override
@@ -111,16 +101,38 @@ public class UserServiceImpl implements UserService, UserDetailsService {
     public boolean existsByEmailExceptId(String email, Long id) {
         return userRepo.countByEmailAndIdNot(email, id) > 0;
     }
-    @Override
-    public Optional<User> findByEmail(String email) {
-        return userRepo.findByEmail(email);
-    }
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepo.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
-        user.getRoles().size();
-        return user;
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+
+        return new org.springframework.security.core.userdetails.User(
+                user.getEmail(),
+                user.getPassword(),
+                user.getRoles().stream()
+                        .map(role -> new SimpleGrantedAuthority(role.getName()))
+                        .collect(Collectors.toList())
+        );
+    }
+    @Override
+    public List<User> findAllWithUserRole() {
+        return userRepo.findAllUsersWithUserRole();
+    }
+
+
+    private void encodePasswordIfPresent(User user) {
+        if (user.getPassword() != null && !user.getPassword().startsWith("$2a$")) {
+            String encoded = passwordEncoder.encode(user.getPassword());
+            System.out.println("Encoding password for user " + user.getEmail() + ": " + encoded);
+            user.setPassword(encoded);
+        }
+    }
+
+    private Set<Role> getRolesByIds(Long[] roleIds) {
+        return Arrays.stream(roleIds)
+                .map(roleRepo::findById)
+                .map(opt -> opt.orElseThrow(() -> new RuntimeException("Role not found")))
+                .collect(Collectors.toSet());
     }
 }

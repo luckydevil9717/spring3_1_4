@@ -19,7 +19,8 @@
         void updateUserWithRoles(User user, Long[] roleIds);
         List<Role> getAllRoles();
         Optional<User> findByEmail(String email);
-
+        List<User> findAll();
+        List<User> findAllWithUserRole();
         boolean existsByEmail(String email);
         boolean existsByEmailExceptId(String email, Long id);
     }
