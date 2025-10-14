@@ -201,6 +201,8 @@
     const modalSubmit = document.getElementById('modal-submit-btn');
     const modalForm = document.getElementById('modal-form');
 
+    let allRoles = [];
+
     // ---------------- Current User ----------------
     fetch('/api/user/me')
         .then(res => res.json())
@@ -210,7 +212,6 @@
         });
 
     // ---------------- Roles List ----------------
-    let allRoles = [];
     fetch('/api/admin/users/roles')
         .then(res => res.json())
         .then(roles => {
@@ -236,15 +237,15 @@
                 users.forEach(user => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>${user.id}</td>
-                        <td>${user.firstName}</td>
-                        <td>${user.lastName}</td>
-                        <td>${user.age != null ? user.age : '-'}</td>
-                        <td>${user.email}</td>
-                        <td>${Array.from(user.rolesNames).join(' ')}</td>
-                        <td><button class="btn btn-turquoise btn-sm edit-btn" data-id="${user.id}">Edit</button></td>
-                        <td><button class="btn btn-danger btn-sm delete-btn" data-id="${user.id}">Delete</button></td>
-                    `;
+                    <td>${user.id}</td>
+                    <td>${user.firstName}</td>
+                    <td>${user.lastName}</td>
+                    <td>${user.age != null ? user.age : '-'}</td>
+                    <td>${user.email}</td>
+                    <td>${Array.from(user.rolesNames).join(' ')}</td>
+                    <td><button class="btn btn-turquoise btn-sm edit-btn" data-id="${user.id}">Edit</button></td>
+                    <td><button class="btn btn-danger btn-sm delete-btn" data-id="${user.id}">Delete</button></td>
+                `;
                     tbody.appendChild(tr);
                 });
                 attachButtons();
@@ -309,6 +310,7 @@
             password: modalForm.password.value || null,
             roleIds: Array.from(modalForm.roleIds.selectedOptions).map(o => Number(o.value))
         };
+
         if (modalSubmit.textContent === 'Save') {
             fetch(`/api/admin/users/${id}`, {
                 method: 'PUT',
@@ -338,12 +340,10 @@
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify(payload)
-        })
-            .then(res => res.json())
-            .then(() => {
-                loadUsers();
-                form.reset();
-            });
+        }).then(() => {
+            loadUsers();
+            form.reset();
+        });
     };
 
     // ---------------- Logout ----------------

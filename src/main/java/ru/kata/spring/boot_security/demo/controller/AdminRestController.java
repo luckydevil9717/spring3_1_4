@@ -7,8 +7,8 @@ import ru.kata.spring.boot_security.demo.dto.AdminDTO;
 import ru.kata.spring.boot_security.demo.model.Role;
 import ru.kata.spring.boot_security.demo.model.User;
 import ru.kata.spring.boot_security.demo.service.RoleService;
-import ru.kata.spring.boot_security.demo.service.RoleServiceImpl;
 import ru.kata.spring.boot_security.demo.service.UserService;
+import ru.kata.spring.boot_security.demo.mapper.AdminMapper;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -20,18 +20,18 @@ public class AdminRestController {
 
     private final UserService userService;
     private final RoleService roleService;
+    private final AdminMapper adminMapper;
 
-
-    public AdminRestController(UserService userService, RoleService roleService) {
+    public AdminRestController(UserService userService, RoleService roleService, AdminMapper adminMapper) {
         this.userService = userService;
         this.roleService = roleService;
-
+        this.adminMapper = adminMapper;
     }
 
     @GetMapping
     public List<AdminDTO> getAllUsers() {
         return userService.getAllUsers().stream()
-                .map(this::convertToDTO)
+                .map(adminMapper::toDto)
                 .collect(Collectors.toList());
     }
 
@@ -40,42 +40,31 @@ public class AdminRestController {
         return roleService.getAllRoles();
     }
 
-
     @GetMapping("/{id}")
     public ResponseEntity<AdminDTO> getUser(@PathVariable Long id) {
         User user = userService.getUser(id);
         if (user == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(convertToDTO(user));
+        return ResponseEntity.ok(adminMapper.toDto(user));
     }
 
     @PostMapping
-    public ResponseEntity<AdminDTO> createUser(@RequestBody User user) {
-        userService.saveUserWithRoles(user, user.getRoleIds());
-        return ResponseEntity.ok(convertToDTO(userService.getUser(user.getId())));
+    public ResponseEntity<Void> createUser(@RequestBody AdminDTO adminDTO) {
+        User user = adminMapper.toEntity(adminDTO);
+        userService.saveUserWithRoles(user, adminDTO.getRoleIds());
+        return ResponseEntity.status(201).build();
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<AdminDTO> updateUser(@PathVariable Long id, @RequestBody User user) {
+    public ResponseEntity<Void> updateUser(@PathVariable Long id, @RequestBody AdminDTO adminDTO) {
+        User user = adminMapper.toEntity(adminDTO);
         user.setId(id);
-        userService.updateUserWithRoles(user, user.getRoleIds());
-        return ResponseEntity.ok(convertToDTO(userService.getUser(id)));
-    }
-
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id);
+        userService.updateUserWithRoles(user, adminDTO.getRoleIds());
         return ResponseEntity.ok().build();
     }
 
-    private AdminDTO convertToDTO(User user) {
-        return new AdminDTO(
-                user.getId(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getEmail(),
-                user.getAge(),
-                user.getRolesNames()
-        );
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        userService.deleteUser(id);
+        return ResponseEntity.ok().build();
     }
 }
