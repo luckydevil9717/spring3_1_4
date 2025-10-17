@@ -303,6 +303,7 @@
         e.preventDefault();
         const id = modalForm.id.value;
         const payload = {
+            id: Number(id),
             firstName: modalForm.firstName.value,
             lastName: modalForm.lastName.value,
             age: modalForm.age.value ? Number(modalForm.age.value) : null,
@@ -312,7 +313,7 @@
         };
 
         if (modalSubmit.textContent === 'Save') {
-            fetch(`/api/admin/users/${id}`, {
+            fetch(`/api/admin/users`, {
                 method: 'PUT',
                 headers: {'Content-Type':'application/json'},
                 body: JSON.stringify(payload)

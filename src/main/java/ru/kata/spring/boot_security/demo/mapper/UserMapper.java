@@ -2,13 +2,23 @@ package ru.kata.spring.boot_security.demo.mapper;
 
 import org.springframework.stereotype.Component;
 import ru.kata.spring.boot_security.demo.dto.UserDTO;
+import ru.kata.spring.boot_security.demo.model.Role;
 import ru.kata.spring.boot_security.demo.model.User;
+import ru.kata.spring.boot_security.demo.service.RoleService;
 
+import java.util.Arrays;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
 public class UserMapper {
 
+
+    private final RoleService roleService;
+
+    public UserMapper(RoleService roleService) {
+        this.roleService = roleService;
+    }
 
     public UserDTO toDto(User user) {
         if (user == null) return null;
@@ -39,6 +49,14 @@ public class UserMapper {
         if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
             user.setPassword(dto.getPassword());
         }
+        if (dto.getRoleIds() != null) {
+            Set<Role> roles = Arrays.stream(dto.getRoleIds())
+                    .map(roleService::getRoleById)
+                    .filter(r -> r != null)
+                    .collect(Collectors.toSet());
+            user.setRoles(roles);
+        }
+
         return user;
     }
 }

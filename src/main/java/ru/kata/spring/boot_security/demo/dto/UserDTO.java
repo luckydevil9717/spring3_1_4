@@ -9,9 +9,18 @@ public class UserDTO {
     private Integer age;
     private String email;
     private String password;
+    private Long[] roleIds;
     private Set<String> rolesNames;
 
     public UserDTO() {
+    }
+
+    public Long[] getRoleIds() {
+        return roleIds;
+    }
+
+    public void setRoleIds(Long[] roleIds) {
+        this.roleIds = roleIds;
     }
 
     public Long getId() {
